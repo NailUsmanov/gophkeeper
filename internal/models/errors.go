@@ -2,16 +2,20 @@
 
 package models
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+)
 
-const (
-	ErrCodeInvalidInput   = "invalid_input"
-	ErrCodeUnauthorized   = "unauthorized"
-	ErrCodeForbidden      = "forbidden"
-	ErrCodeNotFound       = "not_found"
-	ErrCodeConflict       = "conflict"
-	ErrCodeValidationFail = "validation_failed"
-	ErrCodeInternal       = "internal_error"
+var (
+	ErrCodeInvalidInput   = errors.New("invalid_input")
+	ErrCodeUnauthorized   = errors.New("unauthorized")
+	ErrCodeForbidden      = errors.New("forbidden")
+	ErrCodeNotFound       = errors.New("not_found")
+	ErrCodeConflict       = errors.New("conflict")
+	ErrCodeValidationFail = errors.New("validation_failed")
+	ErrCodeInternal       = errors.New("internal_error")
+	ErrCodeAlreadyExists  = errors.New("already exists")
 )
 
 // AppError — доменная ошибка: короткий код, человекочитаемое сообщение,
@@ -25,13 +29,21 @@ type AppError struct {
 
 // Error реализует интерфейс error, возвращая описание-сообщение.
 func (e *AppError) Error() string {
-	return e.Message
+	if e.Message != "" {
+		return e.Message
+	}
+	return e.Code
+}
+
+// Status возвращает статус-код ошибки.
+func (e *AppError) Status() int {
+	return e.HTTPStatus
 }
 
 // NewInvalidInput — 400 Bad Request (ошибка формата/структуры запроса).
 func NewInvalidInput(details map[string]any) *AppError {
 	return &AppError{
-		Code:       ErrCodeInvalidInput,
+		Code:       ErrCodeInvalidInput.Error(),
 		Message:    "invalid input",
 		Details:    details,
 		HTTPStatus: http.StatusBadRequest,
@@ -41,7 +53,7 @@ func NewInvalidInput(details map[string]any) *AppError {
 // NewUnauthorized — 401 Unauthorized (нет/невалидный токен).
 func NewUnauthorized(details map[string]any) *AppError {
 	return &AppError{
-		Code:       ErrCodeUnauthorized,
+		Code:       ErrCodeUnauthorized.Error(),
 		Message:    "not authorized",
 		Details:    details,
 		HTTPStatus: http.StatusUnauthorized,
@@ -51,7 +63,7 @@ func NewUnauthorized(details map[string]any) *AppError {
 // NewForbidden — 403 Forbidden (доступ к ресурсу запрещён при валидной аутентификации).
 func NewForbidden(details map[string]any) *AppError {
 	return &AppError{
-		Code:       ErrCodeForbidden,
+		Code:       ErrCodeForbidden.Error(),
 		Message:    "forbidden",
 		Details:    details,
 		HTTPStatus: http.StatusForbidden,
@@ -61,7 +73,7 @@ func NewForbidden(details map[string]any) *AppError {
 // NewNotFound — 404 Not Found.
 func NewNotFound(details map[string]any) *AppError {
 	return &AppError{
-		Code:       ErrCodeNotFound,
+		Code:       ErrCodeNotFound.Error(),
 		Message:    "not found",
 		Details:    details,
 		HTTPStatus: http.StatusNotFound,
@@ -71,7 +83,7 @@ func NewNotFound(details map[string]any) *AppError {
 // NewConflict — 409 Conflict конфликт версий при optimistic locking.
 func NewConflict(details map[string]any) *AppError {
 	return &AppError{
-		Code:       ErrCodeConflict,
+		Code:       ErrCodeConflict.Error(),
 		Message:    "conflict",
 		Details:    details,
 		HTTPStatus: http.StatusConflict,
@@ -79,9 +91,9 @@ func NewConflict(details map[string]any) *AppError {
 }
 
 // NewValidationFailed — 422 бизнес-валидация не пройдена.
-func NewValidationFailed(details map[string]any) *AppError {
+func NewValidation(details map[string]any) *AppError {
 	return &AppError{
-		Code:       ErrCodeValidationFail,
+		Code:       ErrCodeValidationFail.Error(),
 		Message:    "validation failed",
 		Details:    details,
 		HTTPStatus: http.StatusUnprocessableEntity,
@@ -91,9 +103,27 @@ func NewValidationFailed(details map[string]any) *AppError {
 // NewInternal — 500 Internal Server Error (непредвиденная внутренняя ошибка).
 func NewInternal(details map[string]any) *AppError {
 	return &AppError{
-		Code:       ErrCodeInternal,
+		Code:       ErrCodeInternal.Error(),
 		Message:    "internal server error",
 		Details:    details,
 		HTTPStatus: http.StatusInternalServerError,
 	}
+}
+
+func NewAlreadyExists(details map[string]any) *AppError {
+	return &AppError{
+		Code:       ErrCodeAlreadyExists.Error(),
+		Message:    "already exists",
+		Details:    details,
+		HTTPStatus: http.StatusConflict,
+	}
+}
+
+// HasCode извлекает из err код приложения (если он есть) и сравнивает.
+func HasCode(err error, want string) bool {
+	var app *AppError
+	if errors.As(err, &app) {
+		return app.Code == want
+	}
+	return false
 }

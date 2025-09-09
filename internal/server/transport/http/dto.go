@@ -1,6 +1,21 @@
 // Package http содержит сетевые DTO (запросы/ответы) без бизнес-логики.
 package http
 
+import "time"
+
+// RegisterRequest — входная модель для регистрации.
+type AuthRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// UserResponse — выходная модель для регистрации.
+type UserResponse struct {
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // CreateSecretRequest это структура описывающая, какие данные получаем через сеть.
 type CreateSecretRequest struct {
 	Type  string         `json:"type"`
@@ -26,7 +41,7 @@ type SecretResponse struct {
 	UpdatedAt string         `json:"updated_at"` // время обновления
 }
 
-// ListSecretsResponse — ответ списка с пагинацией.
+// ListSecretResponse — ответ списка с пагинацией.
 type ListSecretResponse struct {
 	Items  []SecretResponse `json:"items"`
 	Total  int              `json:"total"`

@@ -7,9 +7,10 @@ import (
 
 // User — структура пользователя системы.
 type User struct {
-	ID        string // ID пользователя
-	Email     string
-	CreatedAt time.Time // когда создали пользователя
+	ID           string // ID пользователя
+	Email        string
+	CreatedAt    time.Time // когда создали пользователя
+	PasswordHash string
 }
 
 // SecretType — тип секрета.
