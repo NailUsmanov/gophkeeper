@@ -48,3 +48,21 @@ type ListSecretResponse struct {
 	Limit  int              `json:"limit"`
 	Offset int              `json:"offset"`
 }
+
+// AttachmentResponse — единый «выходной» вид метаданных файла.
+type AttachmentResponse struct {
+	ID          string `json:"id"`
+	SecretID    string `json:"secret_id"`
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	Size        int64  `json:"size"`
+	CreatedAt   string `json:"created_at"`
+}
+
+// ListAttachmentResponse — список вложений с пагинацией.
+type ListAttachmentResponse struct {
+	Items  []AttachmentResponse `json:"items"`
+	Total  int                  `json:"total"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+}

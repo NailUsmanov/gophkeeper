@@ -8,17 +8,25 @@ package app
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/NailUsmanov/gophkeeper/internal/security/password"
 	"github.com/NailUsmanov/gophkeeper/internal/security/token"
+	"github.com/jackc/pgx/v5/pgxpool"
 
+	handler_attachment "github.com/NailUsmanov/gophkeeper/internal/server/handlers/attachment"
 	handler_auth "github.com/NailUsmanov/gophkeeper/internal/server/handlers/auth"
 	handler_secret "github.com/NailUsmanov/gophkeeper/internal/server/handlers/secret"
 	"github.com/NailUsmanov/gophkeeper/internal/server/middlewares"
+	"github.com/NailUsmanov/gophkeeper/internal/server/service/attachment"
 	"github.com/NailUsmanov/gophkeeper/internal/server/service/auth"
 	"github.com/NailUsmanov/gophkeeper/internal/server/service/secret"
+	"github.com/NailUsmanov/gophkeeper/internal/server/storage/fs"
+	postgres_attachment "github.com/NailUsmanov/gophkeeper/internal/server/storage/postgres/attachment"
+	postgres_auth "github.com/NailUsmanov/gophkeeper/internal/server/storage/postgres/auth"
+	postgres_secret "github.com/NailUsmanov/gophkeeper/internal/server/storage/postgres/secret"
 	"github.com/NailUsmanov/gophkeeper/internal/server/storage/session/memory"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -28,17 +36,21 @@ import (
 // На текущем этапе содержит роутер и логгер.
 
 type App struct {
-	router *chi.Mux
-	sugar  *zap.SugaredLogger
+	router  *chi.Mux
+	sugar   *zap.SugaredLogger
+	db      *pgxpool.Pool
+	baseDir string
 }
 
 // NewApp создает и настраивает экземлпяр Арр.
 // Здесь регистрируем middleware/маршруты (пока заглушки).
-func NewApp(sugar *zap.SugaredLogger) *App {
+func NewApp(sugar *zap.SugaredLogger, db *pgxpool.Pool, baseDir string) *App {
 	r := chi.NewRouter()
 	a := &App{
-		router: r,
-		sugar:  sugar,
+		router:  r,
+		sugar:   sugar,
+		db:      db,
+		baseDir: baseDir,
 	}
 	a.setupRoutes()
 	return a
@@ -52,38 +64,43 @@ func (a *App) setupRoutes() {
 	tm := token.NewOpaqueManager(store, 24*time.Hour)
 
 	// 2) сервис Секрета.
-	var repo secret.SecretRepository
+	repo := postgres_secret.NewSecretRepo(a.db)
 	svcSecret := secret.NewService(repo)
 
-	// 3) сервис Регистрации
+	// 3) сервис Регистрации.
 	hasher := password.NewBcryptHasher(12)
-	var repoAuth auth.UserRepository
+	repoAuth := postgres_auth.NewUserRepository(a.db)
 	svcAuth := auth.NewAuthService(repoAuth, hasher, tm)
 
-	// 4) базовые мидлвари.
+	// 4) сервис Файлов.
+	repoAttachment := postgres_attachment.NewAttachmentRepository(a.db)
+	storageAttachment, err := fs.NewAttachmentStorage(a.baseDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	svcAttachment := attachment.NewAttachmentService(repoAttachment, storageAttachment, a.sugar)
+	// 5) базовые мидлвари.
 	a.router.Use(middlewares.LoggingMiddleware(a.sugar))
 	a.router.Use(middlewares.GzipMiddleware)
 
-	// 5) Публичные endpoints: регистрация/логин/health и т.д.
+	// 6) Публичные endpoints: регистрация/логин/health и т.д.
 	a.router.Post("/api/v1/register", handler_auth.NewRegister(svcAuth, a.sugar))
 	a.router.Post("/api/v1/login", handler_auth.NewLogin(svcAuth, a.sugar))
 	a.router.Post("/api/v1/logout", handler_auth.NewLogout(svcAuth, a.sugar))
-	// a.router.Get("/health", handlers.Ping())
+	a.router.Get("/ping", handler_attachment.NewPing(svcAttachment, a.sugar))
 
-	// 3) Защищённые маршруты — только с валидным токеном
+	// 7) Защищённые маршруты — только с валидным токеном
 	a.router.Group(func(r chi.Router) {
 		r.Use(middlewares.AuthMiddleWare(tm)) // tm реализует Validate
 		r.Post("/api/v1/secrets", handler_secret.NewCreateSecret(svcSecret, a.sugar))
 		r.Get("/api/v1/secrets/{id}", handler_secret.NewGetByID(svcSecret, a.sugar))
 		r.Get("/api/v1/secrets", handler_secret.NewList(svcSecret, a.sugar))
 		r.Put("/api/v1/secrets/{id}", handler_secret.NewUpdate(svcSecret, a.sugar))
-	})
-	// TODO: зарегистрировать хендлеры, когда они появятся:
-	// a.router.Post("/register", handlers.Register()) // Регистрация
-	// a.router.Post("/auth", handlers.Authentication()) // Аутентификация
-	// a.router.Post("/login", handlers.Authorization()) // Авторизация
-	// a.router.Get("/get", handlers.Get()) // Получение приватных данных
 
+		r.Post("/api/v1/attachments", handler_attachment.NewUpload(svcAttachment, a.sugar))
+		r.Get("/api/v1/attachments/{id}", handler_attachment.NewDownload(svcAttachment, a.sugar))
+		r.Get("/api/v1/attachments", handler_attachment.NewListAttachments(svcAttachment, a.sugar))
+	})
 }
 
 // Run запускает HTTP-сервер на указанном адресе и корректно завершает его по ctx.

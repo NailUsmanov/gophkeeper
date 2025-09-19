@@ -26,9 +26,10 @@ const (
 // AttachmentMeta — метаданные вложения (файла). Байты самого файла лежат в Storage.
 type AttachmentMeta struct {
 	ID          string // id файла
+	FileName    string // имя файла
 	SecretID    string // к какому секрету привязано
-	Size        int
+	OwnerID     string // к кому привязано по ID
+	Size        int64
 	ContentType string // исходный тип файла
-	CheckSum    string // контрольная сумма (например, hex SHA-256)
 	CreatedAt   time.Time
 }

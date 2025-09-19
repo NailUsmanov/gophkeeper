@@ -16,6 +16,7 @@ var (
 	ErrCodeValidationFail = errors.New("validation_failed")
 	ErrCodeInternal       = errors.New("internal_error")
 	ErrCodeAlreadyExists  = errors.New("already exists")
+	ErrCodeBadRequest     = errors.New("bad_request")
 )
 
 // AppError — доменная ошибка: короткий код, человекочитаемое сообщение,
@@ -116,6 +117,15 @@ func NewAlreadyExists(details map[string]any) *AppError {
 		Message:    "already exists",
 		Details:    details,
 		HTTPStatus: http.StatusConflict,
+	}
+}
+
+func NewBadRequest(details map[string]any) *AppError {
+	return &AppError{
+		Code:       ErrCodeBadRequest.Error(),
+		Message:    "bad request",
+		Details:    details,
+		HTTPStatus: http.StatusBadRequest,
 	}
 }
 

@@ -7,7 +7,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
@@ -68,7 +67,7 @@ func (a *AuthService) Register(ctx context.Context, email, password string) (*mo
 	if existing, err := a.repo.FindUserByEmail(ctx, email); err == nil && existing != nil {
 		// пользователь найден → это не успех регистрации
 		return nil, "", models.NewAlreadyExists(nil)
-	} else if err != nil && !errors.Is(err, models.ErrCodeNotFound) {
+	} else if err != nil && !models.HasCode(err, models.ErrCodeNotFound.Error()) {
 		// иная ошибка репозитория
 		return nil, "", models.NewInternal(map[string]any{"op": "FindUserByEmail"})
 	}
@@ -108,7 +107,7 @@ func (a *AuthService) Login(ctx context.Context, email, password string) (*model
 	email = strings.ToLower(strings.TrimSpace(email))
 	user, err := a.repo.FindUserByEmail(ctx, email)
 	if err != nil {
-		if errors.Is(err, models.ErrCodeNotFound) {
+		if models.HasCode(err, models.ErrCodeNotFound.Error()) {
 			return nil, "", models.NewUnauthorized(nil)
 		}
 		// Иная ошибка репозитория — внутренняя.

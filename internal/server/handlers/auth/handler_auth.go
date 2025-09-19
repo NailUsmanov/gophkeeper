@@ -41,7 +41,7 @@ func NewRegister(svc AuthService, log *zap.SugaredLogger) http.HandlerFunc {
 		user, token, err := svc.Register(r.Context(), req.Email, req.Password)
 		if err != nil {
 			log.Error("Register failed")
-			thttp.WriteError(w, models.NewInternal(nil))
+			thttp.WriteError(w, err)
 			return
 		}
 
@@ -90,7 +90,7 @@ func NewLogin(svc AuthService, log *zap.SugaredLogger) http.HandlerFunc {
 		user, token, err := svc.Login(r.Context(), req.Email, req.Password)
 		if err != nil {
 			log.Error("Login failed")
-			thttp.WriteError(w, models.NewInternal(nil))
+			thttp.WriteError(w, err)
 			return
 		}
 

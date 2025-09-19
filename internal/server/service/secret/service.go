@@ -51,8 +51,8 @@ type SecretRepository interface {
 	GetByID(ctx context.Context, ownerID, secretID string) (*Secret, error)                                       // фильтр по ownerID — защита от чтения чужого
 	List(ctx context.Context, ownerID string, limit, offset int, filter SecretListFilter) ([]*Secret, int, error) // по умолчанию возвращает только не удалённые (DeletedAt == nil)
 	Update(ctx context.Context, ownerID string, secret *Secret) error
-	SoftDelete(ctx context.Context, ownerID, secretID string, now time.Time) error
-	UpdatedAfter(ctx context.Context, ownerID string, since time.Time) ([]*Secret, error)
+	// SoftDelete(ctx context.Context, ownerID, secretID string, now time.Time) error
+	// UpdatedAfter(ctx context.Context, ownerID string, since time.Time) ([]*Secret, error)
 }
 
 // ServiceCreate реализация сервиса. Она удовлетворяет локальным интерфейсам хендлера

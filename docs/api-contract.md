@@ -44,7 +44,6 @@
 		secret_id: string
 		size: number
 		content_type: string
-		checksum: string
 		created_at: RFC 3339
 
 3. Эндпоинты:
