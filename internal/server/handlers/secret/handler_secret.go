@@ -339,17 +339,3 @@ func NewUpdate(svc UpdateService, log *zap.SugaredLogger) http.HandlerFunc {
 		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
-
-// // Delete обрабатывает DELETE /api/v1/secrets/{id}
-// func Delete(svc UpdateService, log *zap.SugaredLogger)http.HandlerFunc{
-// return func(w http.ResponseWriter, r *http.Request){
-// 	}
-// }
-
-// TODO: разобраться что за регистрация маршрутов
-/*func (h *SecretHandler) RegisterRoutes(r chi.Router) {
-  r.Post("/", h.Create)
-  r.Get("/{id}", h.GetByID)
-  r.Get("/", h.List)
-  r.Put("/{id}", h.Update)
-  r.Delete("/{id}", h.Delete)*/

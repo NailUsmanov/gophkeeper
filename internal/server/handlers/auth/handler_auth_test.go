@@ -93,7 +93,7 @@ func TestNewRegister_Table(t *testing.T) {
 			},
 		},
 		{
-			name: "Service error -> 500 (как сейчас реализовано в хендлере)",
+			name: "AlreadyExists -> 409",
 			body: thttp.AuthRequest{
 				Email:    "bob@example.com",
 				Password: "pw",
@@ -106,7 +106,7 @@ func TestNewRegister_Table(t *testing.T) {
 					Return(nil, "", models.NewAlreadyExists(nil))
 			},
 			want: want{
-				status: http.StatusInternalServerError,
+				status: http.StatusConflict,
 			},
 		},
 	}
@@ -242,7 +242,7 @@ func TestNewLogin_Table(t *testing.T) {
 			want:      want{status: http.StatusInternalServerError},
 		},
 		{
-			name: "Service error -> 500 (хендлер форсит Internal)",
+			name: "Unauthorized -> 401",
 			body: thttp.AuthRequest{
 				Email:    "bob@example.com",
 				Password: "pw",
@@ -253,7 +253,7 @@ func TestNewLogin_Table(t *testing.T) {
 					Return(nil, "", models.NewUnauthorized(nil)) // не важно какая — хендлер вернёт 500
 			},
 			want: want{
-				status: http.StatusInternalServerError,
+				status: http.StatusUnauthorized,
 			},
 		},
 	}
