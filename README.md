@@ -2,13 +2,11 @@
 
 CLI-клиент для работы с системой хранения секретов **GophKeeper**.
 
-## Возможности
+## Возможности 
 - Регистрация и вход пользователей (`register`, `login`, `logout`)
 - Управление секретами (`create`, `list`, `update`, `get`)
 - Работа с вложенными файлами (`attachment upload`, `attachment list`, `attachment download`)
 - Просмотр версии и даты сборки (`version`)
-
-## Установка и сборка
 
 ### Локальная сборка
 ```bash
@@ -17,7 +15,9 @@ go build -o gk \
             -X 'main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)' \
             -X 'main.buildCommit=$(git rev-parse --short HEAD)'" \
   ./cmd/client
-
+```
+### Кросс сборка
+``` bash
   # Linux
 GOOS=linux GOARCH=amd64 go build -o gk ./cmd/client
 
@@ -29,7 +29,10 @@ GOOS=darwin GOARCH=amd64 go build -o gk ./cmd/client
 
 # macOS (Apple Silicon)
 GOOS=darwin GOARCH=arm64 go build -o gk ./cmd/client
+```
 
+### Быстрый старт
+``` bash
 # показать версию клиента
 gk version
 
@@ -56,3 +59,16 @@ gk attachment download <attachment-id> --dest ./out.txt
 
 # выход из системы
 gk logout
+```
+
+### Архитектура проекта
+.
+├── cmd/             # Точки входа (main.go для клиента и сервера)
+│   └── client/      # CLI клиент (команда gk)
+│   └── server/      # HTTP сервер
+├── internal/
+│   ├── client/      # Логика клиента (transport, session, commands)
+│   ├── server/      # Логика сервера (handlers, middlewares, app)
+│   ├── models/      # Общие структуры (User, Secret, Attachment)
+│   └── storage/     # Хранилище (PostgreSQL, файловое)
+└── README.md
