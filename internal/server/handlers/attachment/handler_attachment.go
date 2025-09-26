@@ -20,16 +20,28 @@ import (
 	"go.uber.org/zap"
 )
 
-// AttachmentService — порт для веб-слоя (хендлеров).
+// AttachmentWriter - принимает файлы для секрета owner'а.
 // Хендлеры знают только об этой абстракции.
-type AttachmentService interface {
-	// Upload — принять файл для секрета owner'a.
-	// r — поток байтов (из http.Request.Body или multipart.File). Возвращаем метаданные.
+// r — поток байтов (из http.Request.Body или multipart.File). Возвращаем метаданные.
+type AttachmentWriter interface {
 	Upload(ctx context.Context, ownerID, secretID, fileName, contentType string, r io.Reader) (*models.AttachmentMeta, error)
-	// Download — отдать файл, если владелец совпадает.
-	// Возвращаем метаданные и поток для чтения. Вызывающий обязан закрыть reader.
+}
+
+// AttachmentReader — отдаёт файл, если владелец совпадает.
+// Хендлеры знают только об этой абстракции.
+// Возвращаем метаданные и поток для чтения. Вызывающий обязан закрыть reader.
+type AttachmentReader interface {
 	Download(ctx context.Context, ownerID, attachmentID string) (meta *models.AttachmentMeta, reader io.ReadCloser, err error)
+}
+
+// AttachmentLister - возвращает файлы секретов списком с возможностью пагинации.
+// Хендлеры знают только об этой абстракции.
+type AttachmentLister interface {
 	List(ctx context.Context, ownerID, secretID string, limit, offset int) ([]models.AttachmentMeta, int, error)
+}
+
+// Pinger — проверяет работоспособность БД.
+type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
@@ -43,7 +55,7 @@ const (
 
 // NewUpload обрабатывает POST /api/attachments (multipart/form-data с полем "file").
 // secret_id берём из query (?secret_id=...) или из поля формы "secret_id".
-func NewUpload(svc AttachmentService, log *zap.SugaredLogger) http.HandlerFunc {
+func NewUpload(svc AttachmentWriter, log *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Достаем ownerID
 		ownerID, _ := r.Context().Value(middlewares.UserLoginKey).(string)
@@ -109,7 +121,7 @@ func NewUpload(svc AttachmentService, log *zap.SugaredLogger) http.HandlerFunc {
 }
 
 // NewDownload обрабатывает GET /api/attachments/{id} .
-func NewDownload(svc AttachmentService, log *zap.SugaredLogger) http.HandlerFunc {
+func NewDownload(svc AttachmentReader, log *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Достаем ownerID из контекста.
 		ownerID, _ := r.Context().Value(middlewares.UserLoginKey).(string)
@@ -168,7 +180,7 @@ func NewDownload(svc AttachmentService, log *zap.SugaredLogger) http.HandlerFunc
 }
 
 // NewListAttachments — обработчик GET /api/attachments?secret_id=&limit=&offset=
-func NewListAttachments(svc AttachmentService, log *zap.SugaredLogger) http.HandlerFunc {
+func NewListAttachments(svc AttachmentLister, log *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Достать ownerID из контекста.
 		ownerID, _ := r.Context().Value(middlewares.UserLoginKey).(string)
@@ -213,7 +225,7 @@ func NewListAttachments(svc AttachmentService, log *zap.SugaredLogger) http.Hand
 	}
 }
 
-func NewPing(svc AttachmentService, log *zap.SugaredLogger) http.HandlerFunc {
+func NewPing(svc Pinger, log *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := svc.Ping(r.Context()); err != nil {
 			log.Errorf("Failed to open DataBase: %v", err)

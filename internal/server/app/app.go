@@ -83,24 +83,32 @@ func (a *App) setupRoutes() {
 	a.router.Use(middlewares.LoggingMiddleware(a.sugar))
 	a.router.Use(middlewares.GzipMiddleware)
 
-	// 6) Публичные endpoints: регистрация/логин/health и т.д.
-	a.router.Post("/api/v1/register", handler_auth.NewRegister(svcAuth, a.sugar))
-	a.router.Post("/api/v1/login", handler_auth.NewLogin(svcAuth, a.sugar))
-	a.router.Post("/api/v1/logout", handler_auth.NewLogout(svcAuth, a.sugar))
+	// Пингуем...
 	a.router.Get("/ping", handler_attachment.NewPing(svcAttachment, a.sugar))
 
-	// 7) Защищённые маршруты — только с валидным токеном
-	a.router.Group(func(r chi.Router) {
-		r.Use(middlewares.AuthMiddleWare(tm)) // tm реализует Validate
-		r.Post("/api/v1/secrets", handler_secret.NewCreateSecret(svcSecret, a.sugar))
-		r.Get("/api/v1/secrets/{id}", handler_secret.NewGetByID(svcSecret, a.sugar))
-		r.Get("/api/v1/secrets", handler_secret.NewList(svcSecret, a.sugar))
-		r.Put("/api/v1/secrets/{id}", handler_secret.NewUpdate(svcSecret, a.sugar))
+	a.router.Route("/api/v1", func(r chi.Router) {
+		// 6) Публичные endpoints: регистрация/логин/health и т.д.
+		r.Post("/register", handler_auth.NewRegister(svcAuth, a.sugar))
+		r.Post("/login", handler_auth.NewLogin(svcAuth, a.sugar))
+		r.Post("/logout", handler_auth.NewLogout(svcAuth, a.sugar))
 
-		r.Post("/api/v1/attachments", handler_attachment.NewUpload(svcAttachment, a.sugar))
-		r.Get("/api/v1/attachments/{id}", handler_attachment.NewDownload(svcAttachment, a.sugar))
-		r.Get("/api/v1/attachments", handler_attachment.NewListAttachments(svcAttachment, a.sugar))
+		// 7) Защищённые маршруты — только с валидным токеном
+		r.Group(func(r chi.Router) {
+			r.Use(middlewares.AuthMiddleWare(tm)) // tm реализует Validate
+
+			// secrets
+			r.Post("/secrets", handler_secret.NewCreateSecret(svcSecret, a.sugar))
+			r.Get("/secrets/{id}", handler_secret.NewGetByID(svcSecret, a.sugar))
+			r.Get("/secrets", handler_secret.NewList(svcSecret, a.sugar))
+			r.Put("/secrets/{id}", handler_secret.NewUpdate(svcSecret, a.sugar))
+
+			// attachments
+			r.Post("/attachments", handler_attachment.NewUpload(svcAttachment, a.sugar))
+			r.Get("/attachments/{id}", handler_attachment.NewDownload(svcAttachment, a.sugar))
+			r.Get("/attachments", handler_attachment.NewListAttachments(svcAttachment, a.sugar))
+		})
 	})
+
 }
 
 // Run запускает HTTP-сервер на указанном адресе и корректно завершает его по ctx.
