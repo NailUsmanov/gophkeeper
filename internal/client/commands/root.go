@@ -24,63 +24,59 @@ var (
 	serverURL string
 )
 
-// rootCmd — ОДНА корневая команда. Всё остальное — подкоманды (login, secret, attachment...).
-// Поле Use — что пишем для вызова команды. Short будет выдан при --help.
-// long - многострочное описание.
-var rootCmd = &cobra.Command{
-	Use:   "gk",
-	Short: "GophKeeper CLI Client",
-	Long: `GophKeeper CLI — клиент для регистрации, логина и работы с секретами/вложениями.
+// NewRootCmd — конструктор корневой команды.
+// Создаёт НОВЫЙ *cobra.Command на каждый вызов (без глобального singletons),
+// чтобы тесты могли вызывать NewRootCmd многократно без "flag redefined".
+func NewRootCmd(version, date, commit string) *cobra.Command {
+	buildVersion, buildDate, buildCommit = version, date, commit
+
+	cmd := &cobra.Command{
+		Use:   "gk",
+		Short: "GophKeeper CLI Client",
+		Long: `GophKeeper CLI — клиент для регистрации, логина и работы с секретами/вложениями.
 Примеры:
   gk version
   gk login --email user@example.com --password secret
   gk secret list --type note
   gk attachment upload --secret-id <id> --file ./path/to/file
 `,
-	// SilenceUsage: true — не печать usage на каждую ошибку (иначе шумно).
-	SilenceUsage: true,
-	// SilenceErrors: true — отдаём ошибку наверх, main печатает ошибки через log.Fatal.
-	SilenceErrors: true,
-	// PersistentPreRunE — действие, которое выполнится перед ЛЮБОЙ подкомандой.
-	// Используется для инициализации чтения конфига, валидации флагов.
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if serverURL == "" {
-			if v := os.Getenv("GK_SERVER_URL"); v != "" {
-				serverURL = v
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		// Проверка serverURL перед запуском любых подкоманд,
+		// но оставляем дефолт, так что это не будет падать в тестах.
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if serverURL == "" {
+				if v := os.Getenv("GK_SERVER_URL"); v != "" {
+					serverURL = v
+				}
 			}
-		}
-		if serverURL == "" {
-			return fmt.Errorf("server URL is required (flag --server or env GL_SERVER_URL)")
-		}
-		return nil
-	},
-}
+			if serverURL == "" {
+				return fmt.Errorf("server URL is required (flag --server or env GK_SERVER_URL)")
+			}
+			return nil
+		},
+	}
 
-// Execute — вход из main.go.
-// Сохраняет build-инфо, навешивает глобальные флаги, регистрирует подкоманды.
-// Вызывает rootCmd.Execute() для парсинга аргументов и запуск нужной подкоманды.
-func Execute(version, date, commit string) error {
-	buildVersion, buildDate, buildCommit = version, date, commit
-
-	// Глобальные (persistent) флаги — видны всем подкомандам: gk <sub> --server http://...
-	rootCmd.PersistentFlags().StringVar(
+	// Глобальный флаг (persistent) — виден всем подкомандам
+	cmd.PersistentFlags().StringVar(
 		&serverURL, "server", "http://localhost:8080",
 		"base URL of the GophKeeper server (can be GK_SERVER_URL)",
 	)
-	// rootCmd.AddCommand(newSecretCmd())      // у которой будут подкоманды list/get/create/update
-	// rootCmd.AddCommand(newAttachmentCmd())  // у которой будут upload/download/list
-	// команда проверяет версию:
-	rootCmd.AddCommand(newVersionCmd())
-	rootCmd.AddCommand(auth.NewLoginCmd())
-	rootCmd.AddCommand(auth.NewRegisterCmd())
-	rootCmd.AddCommand(auth.NewLogoutCmd())
 
-	// добавляем группу secret
-	rootCmd.AddCommand(secret.NewSecretCmd())
+	// Подкоманды
+	cmd.AddCommand(newVersionCmd())
+	cmd.AddCommand(auth.NewLoginCmd())
+	cmd.AddCommand(auth.NewRegisterCmd())
+	cmd.AddCommand(auth.NewLogoutCmd())
+	cmd.AddCommand(secret.NewSecretCmd())
+	cmd.AddCommand(attachment.NewAttachmentCmd())
 
-	// добавляем группу attachment
-	rootCmd.AddCommand(attachment.NewAttachmentCmd())
-	return rootCmd.Execute()
+	return cmd
+}
+
+// Execute — точка входа из main.go: строит команду и запускает её.
+func Execute(version, date, commit string) error {
+	return NewRootCmd(version, date, commit).Execute()
 }
 
 // Command "gk version"
@@ -88,7 +84,7 @@ func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print client build information",
-		Long:  "Показывает версию, дату, коммит сборки конкретного CLI-клиентаю.",
+		Long:  "Показывает версию, дату и коммит сборки CLI-клиента.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Printf("Version: %s\nBuild date: %s\nCommit: %s\n", buildVersion, buildDate, buildCommit)
 			return nil

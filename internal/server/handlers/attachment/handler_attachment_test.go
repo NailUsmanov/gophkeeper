@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -22,6 +23,10 @@ import (
 )
 
 // ---- вспомогалки ----
+
+type pingSvcMock struct{ err error }
+
+func (m pingSvcMock) Ping(_ context.Context) error { return m.err }
 
 func testLogger(t *testing.T) *zap.SugaredLogger {
 	l, _ := zap.NewDevelopment()
@@ -494,5 +499,31 @@ func TestNewListAttachments_Forbidden(t *testing.T) {
 
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("status=%d, want %d", rr.Code, http.StatusForbidden)
+	}
+}
+
+func TestPing_OK(t *testing.T) {
+	log := zap.NewNop().Sugar()
+	hdl := NewPing(pingSvcMock{err: nil}, log) // без h.
+
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	rr := httptest.NewRecorder()
+
+	hdl(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", rr.Code)
+	}
+}
+
+func TestPing_Error(t *testing.T) {
+	log := zap.NewNop().Sugar()
+	hdl := NewPing(pingSvcMock{err: errors.New("db down")}, log)
+
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	rr := httptest.NewRecorder()
+
+	hdl(rr, req)
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("want 500, got %d", rr.Code)
 	}
 }

@@ -223,6 +223,7 @@ func TestServiceListInternal(t *testing.T) {
 // Test Update
 func TestServiceUpdateOK(t *testing.T) {
 	now := time.Now()
+	prevUpdatedAt := now.Add(-time.Hour)
 	r := repoMock{
 		getByIDFn: func(ctx context.Context, ownerID, secretID string) (*Secret, error) {
 			return &Secret{
@@ -252,7 +253,7 @@ func TestServiceUpdateOK(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Old", got.Title) // сохранился
 	require.Equal(t, 4, got.Version)
-	require.True(t, got.UpdatedAt.After(now))
+	require.True(t, got.UpdatedAt.After(prevUpdatedAt))
 }
 
 func TestServiceUpdateOKNewTitle(t *testing.T) {

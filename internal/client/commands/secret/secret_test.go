@@ -322,3 +322,21 @@ func TestSecretUpdate_MissingVersion(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `required flag(s) "version" not set`)
 }
+func TestNewSecretCmd_Basics(t *testing.T) {
+	cmd := commands_secret.NewSecretCmd()
+
+	require.Equal(t, "secret", cmd.Use)
+	require.Contains(t, cmd.Short, "Manage")
+
+	// соберём имена подкоманд
+	names := []string{}
+	for _, c := range cmd.Commands() {
+		names = append(names, c.Use)
+	}
+
+	// правильные Use для подкоманд
+	require.ElementsMatch(t,
+		[]string{"create", "get <id>", "list", "update <id>"},
+		names,
+	)
+}

@@ -17,16 +17,26 @@ import (
 	"go.uber.org/zap"
 )
 
-// AuthService описывает доменный сервис аутентификации.
+// AuthRegister - описывает доменный сервис регистрации.
 // Хендлеры обращаются к нему, не зная деталей БД/токенов/хэширования.
-type AuthService interface {
+type AuthRegister interface {
 	Register(ctx context.Context, email, password string) (*models.User, string, error)
+}
+
+// AuthLoginer - описывает доменный сервис логирования.
+// Хендлеры обращаются к нему, не зная деталей БД/токенов/хэширования.
+type AuthLoginer interface {
 	Login(ctx context.Context, email, password string) (*models.User, string, error)
+}
+
+// AuthLogouter - описывает доменный сервис выхода из профиля юзера.
+// Хендлеры обращаются к нему, не зная деталей БД/токенов/хэширования.
+type AuthLogouter interface {
 	Logout(ctx context.Context, authToken string) error
 }
 
 // NewAuth обрабатывает POST /api/v1/register.
-func NewRegister(svc AuthService, log *zap.SugaredLogger) http.HandlerFunc {
+func NewRegister(svc AuthRegister, log *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1) Считываем email и пароль из JSON-тела.
 		var req thttp.AuthRequest
@@ -75,7 +85,7 @@ func NewRegister(svc AuthService, log *zap.SugaredLogger) http.HandlerFunc {
 }
 
 // NewLogin обрабатывает POST /api/v1/login.
-func NewLogin(svc AuthService, log *zap.SugaredLogger) http.HandlerFunc {
+func NewLogin(svc AuthLoginer, log *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1) Считываем email и пароль из JSON-тела.
 		var req thttp.AuthRequest
@@ -125,7 +135,7 @@ func NewLogin(svc AuthService, log *zap.SugaredLogger) http.HandlerFunc {
 
 // NewLogout обрабатывает POST /api/v1/logout.
 // Идемпотентен: при отсутствии/некорректности токена всё равно стирает cookie и возвращает 204.
-func NewLogout(svc AuthService, log *zap.SugaredLogger) http.HandlerFunc {
+func NewLogout(svc AuthLogouter, log *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Читаем токен из cookie.
 		c, _ := r.Cookie("auth_token")

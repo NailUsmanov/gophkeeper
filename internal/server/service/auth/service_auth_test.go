@@ -119,7 +119,7 @@ func TestRegister(t *testing.T) {
 			args: args{"alice@example.com", "secret"},
 			repo: &repoMock{
 				findByUserEmailFn: func(ctx context.Context, email string) (*models.User, error) {
-					return nil, models.ErrCodeNotFound
+					return nil, nil
 				},
 				createFn: func(ctx context.Context, u *models.User) error {
 					require.NotEmpty(t, u.ID)
@@ -161,7 +161,7 @@ func TestRegister(t *testing.T) {
 			args: args{"alice@example.com", "secret"},
 			repo: &repoMock{
 				findByUserEmailFn: func(ctx context.Context, email string) (*models.User, error) {
-					return nil, models.ErrCodeNotFound
+					return nil, nil
 				},
 			},
 			hasher: &hasherMock{
@@ -179,7 +179,7 @@ func TestRegister(t *testing.T) {
 			args: args{"alice@example.com", "secret"},
 			repo: &repoMock{
 				findByUserEmailFn: func(ctx context.Context, email string) (*models.User, error) {
-					return nil, models.ErrCodeNotFound
+					return nil, nil
 				},
 				createFn: func(ctx context.Context, u *models.User) error { return errors.New("db down") },
 			},
@@ -196,7 +196,7 @@ func TestRegister(t *testing.T) {
 			args: args{"alice@example.com", "secret"},
 			repo: &repoMock{
 				findByUserEmailFn: func(ctx context.Context, email string) (*models.User, error) {
-					return nil, models.ErrCodeNotFound
+					return nil, nil
 				},
 			},
 			hasher:  &hasherMock{},

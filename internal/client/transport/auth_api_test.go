@@ -47,3 +47,43 @@ func TestRegister_Success(t *testing.T) {
 	require.Equal(t, "C2", tok)
 	require.Equal(t, "u2", u.ID)
 }
+
+func TestLogout_Non204_Error(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/logout", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	cl, _ := transport.NewClient(ts.URL)
+	err := cl.Logout(context.Background(), "tok")
+	require.Error(t, err)
+}
+
+func TestLogout_Success204(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/logout", r.URL.Path)
+		require.Equal(t, http.MethodPost, r.Method)
+		// cookie автоматически ставится в c.do()
+		require.Equal(t, "auth_token=TOK", r.Header.Get("Cookie"))
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer ts.Close()
+
+	cl, _ := transport.NewClient(ts.URL)
+	cl.SetToken("TOK")
+	err := cl.Logout(context.Background(), "TOK")
+	require.NoError(t, err)
+}
+
+func TestLogout_UnexpectedStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTeapot) // 418
+	}))
+	defer ts.Close()
+
+	cl, _ := transport.NewClient(ts.URL)
+	err := cl.Logout(context.Background(), "TOK")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unexpected status 418")
+}

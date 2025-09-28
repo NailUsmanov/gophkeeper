@@ -422,3 +422,49 @@ func TestAttachmentService_List_RepoError(t *testing.T) {
 		t.Fatalf("expected error on repo.List")
 	}
 }
+func TestAttachmentService_Ping_OK(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop().Sugar()
+
+	svc := NewAttachmentService(
+		&fakeRepo{ /* pingFn=nil => OK */ },
+		&fakeStorage{ /* pingFn=nil => OK */ },
+		logger,
+	)
+
+	if err := svc.Ping(ctx); err != nil {
+		t.Fatalf("Ping() = %v, want nil", err)
+	}
+}
+
+func TestAttachmentService_Ping_RepoError(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop().Sugar()
+	want := errors.New("db down")
+
+	svc := NewAttachmentService(
+		&fakeRepo{pingFn: func(context.Context) error { return want }},
+		&fakeStorage{}, // OK
+		logger,
+	)
+
+	if err := svc.Ping(ctx); err == nil || err.Error() != want.Error() {
+		t.Fatalf("Ping() err=%v, want %v", err, want)
+	}
+}
+
+func TestAttachmentService_Ping_StorageError(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop().Sugar()
+	want := errors.New("storage down")
+
+	svc := NewAttachmentService(
+		&fakeRepo{}, // OK
+		&fakeStorage{pingFn: func(context.Context) error { return want }},
+		logger,
+	)
+
+	if err := svc.Ping(ctx); err == nil || err.Error() != want.Error() {
+		t.Fatalf("Ping() err=%v, want %v", err, want)
+	}
+}

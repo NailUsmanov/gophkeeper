@@ -53,12 +53,34 @@ func WriteError(w http.ResponseWriter, err error) {
 	writeAppError(w, models.NewInternal(nil))
 }
 
+type errPayload struct {
+	Error   string         `json:"error"`
+	Message string         `json:"message"`
+	Details map[string]any `json:"details,omitempty"`
+}
+
 func writeAppError(w http.ResponseWriter, app *models.AppError) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(app.HTTPStatus)
-	_ = json.NewEncoder(w).Encode(ErrorResponse{
+	status := app.Status()
+	if status == 0 {
+		status = http.StatusInternalServerError
+	}
+
+	resp := errPayload{
 		Error:   app.Code,
-		Message: app.Message,
+		Message: app.Error(), // вернёт Message или Code, если Message пуст
 		Details: app.Details,
-	})
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+
+	// Пытаемся отдать JSON; если не вышло — минимальный текстовый фолбэк
+	if enc, err := json.Marshal(resp); err == nil {
+		_, _ = w.Write(enc)
+		_, _ = w.Write([]byte("\n"))
+		return
+	}
+	// Фолбэк без паники и без повторной смены статуса
+	_, _ = w.Write([]byte(`{"error":"internal_error","message":"internal server error"}` + "\n"))
+
 }
