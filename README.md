@@ -1,74 +1,173 @@
-# GophKeeper CLI
+# GophKeeper
 
-CLI-клиент для работы с системой хранения секретов **GophKeeper**.
+**GophKeeper** — это кроссплатформенное приложение для безопасного хранения пользовательских данных.  
+Оно включает **CLI-клиент** и **HTTP-сервер**, реализующие шифрование, аутентификацию и синхронизацию секретов.
 
-## Возможности 
-- Регистрация и вход пользователей (`register`, `login`, `logout`)
-- Управление секретами (`create`, `list`, `update`, `get`)
-- Работа с вложенными файлами (`attachment upload`, `attachment list`, `attachment download`)
-- Просмотр версии и даты сборки (`version`)
+## Основные возможности
 
-### Локальная сборка
-```bash
-go build -o gk \
-  -ldflags "-X 'main.buildVersion=1.0.0' \
-            -X 'main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)' \
-            -X 'main.buildCommit=$(git rev-parse --short HEAD)'" \
-  ./cmd/client
+- Регистрация и аутентификация пользователей  
+- Хранение секретов различных типов (логины, пароли, текстовые заметки, бинарные файлы)  
+- Шифрование данных на стороне клиента  
+- Синхронизация данных между устройствами  
+- Работа через HTTP API 
+- Авторизация через JWT  
+- Ведение логов и централизованная обработка ошибок  
+- Поддержка PostgreSQL  
+- Поддержка gzip-сжатия ответов  
+- Модульные и интеграционные тесты  
+
+## Стек технологий
+
+- **Go 1.23+**
+- **PostgreSQL**
+- **Chi** — маршрутизация HTTP
+- **pgx** — драйвер PostgreSQL
+- **Zap** — логирование
+- **JWT** — авторизация
+- **Gzip middleware**
+- **gomock, testify** — тестирование
+
+## Архитектура проекта
+
+Проект реализован в соответствии с принципами **Clean Architecture**:
+
 ```
-### Кросс сборка
-``` bash
-  # Linux
-GOOS=linux GOARCH=amd64 go build -o gk ./cmd/client
-
-# Windows
-GOOS=windows GOARCH=amd64 go build -o gk.exe ./cmd/client
-
-# macOS (Intel)
-GOOS=darwin GOARCH=amd64 go build -o gk ./cmd/client
-
-# macOS (Apple Silicon)
-GOOS=darwin GOARCH=arm64 go build -o gk ./cmd/client
-```
-
-### Быстрый старт
-``` bash
-# показать версию клиента
-gk version
-
-# регистрация нового пользователя
-gk register --email user@example.com --password secret
-
-# вход в систему
-gk login --email user@example.com --password secret
-
-# создание заметки
-gk secret create --type note --title "My note" --data '{"note":"hi"}'
-
-# список секретов
-gk secret list
-
-# загрузка вложения
-gk attachment upload --secret-id <uuid> --file ./demo.txt
-
-# список вложений
-gk attachment list --secret-id <uuid>
-
-# скачивание вложения
-gk attachment download <attachment-id> --dest ./out.txt
-
-# выход из системы
-gk logout
-```
-
-### Архитектура проекта
-.
-├── cmd/             # Точки входа (main.go для клиента и сервера)
-│   └── client/      # CLI клиент (команда gk)
-│   └── server/      # HTTP сервер
+gophkeeper/
+├── cmd/
+│   ├── client/                      # CLI-клиент
+│   └── server/                      # HTTP/gRPC сервер
+│       └── var/attachments/         # Временные файлы вложений
+├── docs/                            # Документация проекта
 ├── internal/
-│   ├── client/      # Логика клиента (transport, session, commands)
-│   ├── server/      # Логика сервера (handlers, middlewares, app)
-│   ├── models/      # Общие структуры (User, Secret, Attachment)
-│   └── storage/     # Хранилище (PostgreSQL, файловое)
+│   ├── client/                      # Клиентская логика
+│   │   ├── commands/                # Команды CLI
+│   │   │   ├── attachment/          # Работа с вложениями
+│   │   │   ├── auth/                # Регистрация и логин
+│   │   │   └── secret/              # Управление секретами
+│   │   ├── session/                 # Сессии клиента
+│   │   └── transport/               # Транспорт клиента (HTTP/gRPC)
+│   ├── models/                      # Общие структуры данных
+│   ├── security/                    # Безопасность и криптография
+│   │   ├── password/                # Хэширование паролей
+│   │   └── token/                   # Работа с JWT-токенами
+│   └── server/                      # Серверная часть
+│       ├── app/                     # Инициализация и запуск приложения
+│       ├── handlers/                # HTTP-обработчики
+│       │   ├── attachment/
+│       │   ├── auth/
+│       │   └── secret/
+│       ├── middlewares/             # Мидлвары (аутентификация, логирование и т.д.)
+│       ├── service/                 # Бизнес-логика
+│       │   ├── attachment/
+│       │   ├── auth/
+│       │   └── secret/
+│       ├── storage/                 # Слой хранения данных
+│       │   ├── fs/                  # Локальное файловое хранилище
+│       │   ├── postgres/            # PostgreSQL-реализация
+│       │   │   ├── attachment/
+│       │   │   ├── auth/
+│       │   │   └── secret/
+│       │   └── session/             # Хранилище сессий
+│       │       └── memory/          # Временное in-memory хранилище
+│       └── transport/               # Транспортные слои сервера
+│           └── http/
+├── migrations/                      # SQL-миграции для БД
+├── pkg/
+│   └── config/                      # Конфигурации проекта
 └── README.md
+```
+
+## Установка и запуск
+
+### 1. Клонирование репозитория
+
+```bash
+git clone https://github.com/NailUsmanov/gophkeeper.git
+cd gophkeeper
+```
+
+### 2. Настройка окружения
+
+Создайте `.env` файл:
+
+```bash
+SERVER_ADDRESS=:8080
+DATABASE_DSN=postgres://user:password@localhost:5432/gophkeeper?sslmode=disable
+JWT_SECRET=supersecret
+```
+
+### 3. Примените миграции
+
+```bash
+make migrate-up
+```
+или вручную:
+```bash
+psql -d gophkeeper -f migrations/init.sql
+```
+
+### 4. Запуск сервера
+
+```bash
+go run ./cmd/server
+```
+
+### 5. Запуск CLI-клиента
+
+```bash
+go run ./cmd/client
+```
+
+## Пример работы
+
+### Регистрация пользователя
+```bash
+gophkeeper register --email user@example.com --password 123456
+```
+
+### Авторизация
+```bash
+gophkeeper login --email user@example.com --password 123456
+```
+
+### Добавление секрета
+```bash
+gophkeeper add --type password --data "gmail: mypassword123"
+```
+
+### Получение списка секретов
+```bash
+gophkeeper list
+```
+
+## Тестирование
+
+```bash
+go test ./... -v
+```
+
+После выполнения можно открыть отчёт покрытия:
+
+```bash
+go tool cover -html=coverage.out
+```
+
+## Структура данных
+
+### Пользователь (`users`)
+| Поле        | Тип         | Описание                |
+|--------------|-------------|--------------------------|
+| id           | uuid        | Уникальный идентификатор |
+| email        | text        | Почта пользователя       |
+| password     | text        | Хэш пароля              |
+| created_at   | timestamp   | Дата создания           |
+
+### Секреты (`secrets`)
+| Поле        | Тип         | Описание                |
+|--------------|-------------|--------------------------|
+| id           | uuid        | Уникальный идентификатор |
+| user_id      | uuid        | Владелец секрета         |
+| type         | text        | Тип (пароль, заметка, файл) |
+| data         | bytea       | Зашифрованные данные     |
+| updated_at   | timestamp   | Последнее обновление     |
+
